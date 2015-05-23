@@ -3,25 +3,28 @@
 if(!defined('DOKU_INC')) die();
 
 /**
- * PostgreSQL authentication backend
+ * SQLite authentication backend
  *
- * This class inherits much functionality from the MySQL class
- * and just reimplements the Postgres specific parts.
+ * This plugin is more or less authpgsql with the serial numbers filed
+ * off and SQLite functions used instead of PostgreSQL
  *
  * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
+ * @author     Clay Dowling <clay@lazarusid.com>
+ * ----------- Authors of the PgSQL and MySQL originals ------------
  * @author     Andreas Gohr <andi@splitbrain.org>
  * @author     Chris Smith <chris@jalakai.co.uk>
  * @author     Matthias Grimm <matthias.grimmm@sourceforge.net>
  * @author     Jan Schumann <js@schumann-it.com>
  */
-class auth_plugin_authpgsql extends auth_plugin_authmysql {
+class auth_plugin_authsqlite extends auth_plugin_authmysql {
 
     /**
      * Constructor
      *
-     * checks if the pgsql interface is available, otherwise it will
+     * checks if the sqlite interface is available, otherwise it will
      * set the variable $success of the basis class to false
      *
+     * @author Clay Dowling <clay@lazarusid.com>
      * @author Matthias Grimm <matthiasgrimm@users.sourceforge.net>
      * @author Andreas Gohr <andi@splitbrain.org>
      */
@@ -29,8 +32,8 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
         // we don't want the stuff the MySQL constructor does, but the grandparent might do something
         DokuWiki_Auth_Plugin::__construct();
 
-        if(!function_exists('pg_connect')) {
-            $this->_debug("PgSQL err: PHP Postgres extension not found.", -1, __LINE__, __FILE__);
+        if(!function_exists('sqlite_open')) {
+            $this->_debug("SQLite err: PHP SQLite extension not found.", -1, __LINE__, __FILE__);
             $this->success = false;
             return;
         }
@@ -38,10 +41,8 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
         $this->loadConfig();
 
         // set capabilities based upon config strings set
-        if(empty($this->conf['user']) ||
-            empty($this->conf['password']) || empty($this->conf['database'])
-        ) {
-            $this->_debug("PgSQL err: insufficient configuration.", -1, __LINE__, __FILE__);
+	if(empty($this->conf['database'])) {
+            $this->_debug("SQLite err: insufficient configuration.", -1, __LINE__, __FILE__);
             $this->success = false;
             return;
         }
@@ -293,27 +294,20 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
      * usage in the object. The successful call to this functions is
      * essential for most functions in this object.
      *
+     * @author Clay Dowling <clay@lazarusid.com>
      * @author Matthias Grimm <matthiasgrimm@users.sourceforge.net>
      *
      * @return bool
      */
     protected function _openDB() {
         if(!$this->dbcon) {
-            $dsn = $this->conf['server'] ? 'host='.$this->conf['server'] : '';
-            $dsn .= ' port='.$this->conf['port'];
-            $dsn .= ' dbname='.$this->conf['database'];
-            $dsn .= ' user='.$this->conf['user'];
-            $dsn .= ' password='.$this->conf['password'];
-
-            $con = @pg_connect($dsn);
+	    $errormsg = '';
+            $con = @sqlite_open($this->conf['database'], 0666, $errormsg);
             if($con) {
                 $this->dbcon = $con;
                 return true; // connection and database successfully opened
             } else {
-                $this->_debug(
-                        "PgSQL err: Connection to {$this->conf['user']}@{$this->conf['server']} not possible.",
-                        -1, __LINE__, __FILE__
-                    );
+                $this->_debug($errormsg);
             }
             return false; // connection failed
         }
@@ -323,11 +317,12 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
     /**
      * Closes a database connection.
      *
+     * @author Clay Dowling <clay@lazarusid.com>
      * @author Matthias Grimm <matthiasgrimm@users.sourceforge.net>
      */
     protected function _closeDB() {
         if($this->dbcon) {
-            pg_close($this->dbcon);
+            sqlite_close($this->dbcon);
             $this->dbcon = 0;
         }
     }
@@ -347,14 +342,13 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
     protected function _queryDB($query) {
         $resultarray = array();
         if($this->dbcon) {
-            $result = @pg_query($this->dbcon, $query);
+            $result = @sqlite_query($this->dbcon, $query);
             if($result) {
-                while(($t = pg_fetch_assoc($result)) !== false)
+                while(($t = sqlite_fetch_array($result, SQLITE_ASSOC)) !== false)
                     $resultarray[] = $t;
-                pg_free_result($result);
                 return $resultarray;
             } else{
-                $this->_debug('PgSQL err: '.pg_last_error($this->dbcon), -1, __LINE__, __FILE__);
+                $this->_debug('SQLite err: '.sqlite_last_error($this->dbcon), -1, __LINE__, __FILE__);
             }
         }
         return false;
@@ -364,6 +358,7 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
      * Executes an update or insert query. This differs from the
      * MySQL one because it does NOT return the last insertID
      *
+     * @author Clay Dowling <clay@lazarusid.com>
      * @author Andreas Gohr <andi@splitbrain.org>
      *
      * @param string $query
@@ -371,12 +366,11 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
      */
     protected function _modifyDB($query) {
         if($this->dbcon) {
-            $result = @pg_query($this->dbcon, $query);
+            $result = @sqlite_exec($this->dbcon, $query);
             if($result) {
-                pg_free_result($result);
                 return true;
             }
-            $this->_debug('PgSQL err: '.pg_last_error($this->dbcon), -1, __LINE__, __FILE__);
+            $this->_debug('SQLite err: '.sqlite_last_error($this->dbcon), -1, __LINE__, __FILE__);
         }
         return false;
     }
@@ -422,7 +416,7 @@ class auth_plugin_authpgsql extends auth_plugin_authmysql {
      * @return string
      */
     protected function _escape($string, $like = false) {
-        $string = pg_escape_string($string);
+        $string = sqlite_escape_string($string);
         if($like) {
             $string = addcslashes($string, '%_');
         }
