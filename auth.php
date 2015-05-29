@@ -32,16 +32,11 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
         // we don't want the stuff the MySQL constructor does, but the grandparent might do something
         DokuWiki_Auth_Plugin::__construct();
 
-        if(!function_exists('sqlite_open')) {
-            $this->_debug("SQLite err: PHP SQLite extension not found.", -1, __LINE__, __FILE__);
-            $this->success = false;
-            return;
-        }
-
         $this->loadConfig();
 
         // set capabilities based upon config strings set
 	if(empty($this->conf['database'])) {
+	    echo "Insufficient Config!";
             $this->_debug("SQLite err: insufficient configuration.", -1, __LINE__, __FILE__);
             $this->success = false;
             return;
@@ -98,6 +93,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
             )
         );
         $this->cando['getUserCount'] = $this->_chkcnf(array('getUsers'));
+	$this->success = true;
     }
 
     /**
@@ -302,7 +298,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
     protected function _openDB() {
         if(!$this->dbcon) {
 	    $errormsg = '';
-            $con = @sqlite_open($this->conf['database'], 0666, $errormsg);
+	    $con = new SQLite3($this->conf['database']);
             if($con) {
                 $this->dbcon = $con;
                 return true; // connection and database successfully opened
@@ -322,7 +318,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
      */
     protected function _closeDB() {
         if($this->dbcon) {
-            sqlite_close($this->dbcon);
+	    $this->dbcon->close();
             $this->dbcon = 0;
         }
     }
@@ -342,15 +338,17 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
     protected function _queryDB($query) {
         $resultarray = array();
         if($this->dbcon) {
-            $result = @sqlite_query($this->dbcon, $query);
+            $result = $this->dbcon->query($query);
             if($result) {
-                while(($t = sqlite_fetch_array($result, SQLITE_ASSOC)) !== false)
+                while(($t = $result->fetchArray(SQLITE3_ASSOC)) !== false) {
                     $resultarray[] = $t;
+		}
                 return $resultarray;
             } else{
-                $this->_debug('SQLite err: '.sqlite_last_error($this->dbcon), -1, __LINE__, __FILE__);
+		print "SQLite err: " . $this->dbcon->lastErrorMsg();
+                $this->_debug('SQLite err: '. $this->dbcon->lastErrorMsg(), -1, __LINE__, __FILE__);
             }
-        }
+	}
         return false;
     }
 
@@ -366,11 +364,11 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
      */
     protected function _modifyDB($query) {
         if($this->dbcon) {
-            $result = @sqlite_exec($this->dbcon, $query);
+            $result = $this->dbcon->exec($query);
             if($result) {
                 return true;
             }
-            $this->_debug('SQLite err: '.sqlite_last_error($this->dbcon), -1, __LINE__, __FILE__);
+            $this->_debug('SQLite err: '. $this->dbcon->lastErrorMsg(), -1, __LINE__, __FILE__);
         }
         return false;
     }
@@ -416,7 +414,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
      * @return string
      */
     protected function _escape($string, $like = false) {
-        $string = sqlite_escape_string($string);
+        $string = $this->dbcon->escapeString($string);
         if($like) {
             $string = addcslashes($string, '%_');
         }
