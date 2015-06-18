@@ -207,7 +207,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
             if(strpos($sql, '%{uid}') !== false) {
                 $uid = $this->_getUserID($user);
                 $sql = str_replace('%{uid}', addslashes($uid), $sql);
-            }
+	    }
             $sql = str_replace('%{user}', addslashes($user), $sql);
             $sql = str_replace('%{gid}', addslashes($gid), $sql);
             $sql = str_replace('%{group}', addslashes($group), $sql);
@@ -324,6 +324,26 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
     }
 
     /**
+     * Substitue any %{animal} parameters in the SQL, so that users
+     * and groups can be animal specific in a farm configuration
+     */
+    protected function _substituteAnimal($query)
+    {
+        if(defined('DOKU_FARM') && strpos($query, '%{animal}') !== false) {
+	    $parts = split('/', DOKU_CONF);
+	    $animal = '';
+	    $len = count($parts);
+	    for ($i=$len - 1; $i > 0; $i--) {
+	        if ($parts[$i] == 'conf' && $i > 0) {
+		    $animal = $parts[$i - 1];
+	        }
+	    }
+	    $query = str_replace('%{animal}', addslashes($animal), $query);
+        }
+	return $query;
+    }
+
+    /**
      * Sends a SQL query to the database and transforms the result into
      * an associative array.
      *
@@ -338,6 +358,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
     protected function _queryDB($query) {
         $resultarray = array();
         if($this->dbcon) {
+	    $query = $this->_substituteAnimal($query);
             $result = $this->dbcon->query($query);
             if($result) {
                 while(($t = $result->fetchArray(SQLITE3_ASSOC)) !== false) {
@@ -345,7 +366,6 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
 		}
                 return $resultarray;
             } else{
-		print "SQLite err: " . $this->dbcon->lastErrorMsg();
                 $this->_debug('SQLite err: '. $this->dbcon->lastErrorMsg(), -1, __LINE__, __FILE__);
             }
 	}
@@ -364,6 +384,7 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
      */
     protected function _modifyDB($query) {
         if($this->dbcon) {
+	    $query = $this->_substituteAnimal($query);
             $result = $this->dbcon->exec($query);
             if($result) {
                 return true;
