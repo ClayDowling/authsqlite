@@ -41,7 +41,8 @@ different for each animal.
 	$conf['plugin']['authsqlite']['addUser'] = 
 		'INSERT INTO user (login, pass, email, fullname)
 		VALUES (\'%{user}\', \'%{pass}\', \'%{email}\', \'%{name}\')';
-	$conf['plugin']['authsqlite']['addGroup'] = 'INSERT INTO groups (name) VALUES (\'%{group}\')';
+	$conf['plugin']['authsqlite']['addGroup'] = 
+		'INSERT INTO groups (name) VALUES (\'%{group}\')';
 	$conf['plugin']['authsqlite']['addUserGroup'] = 
 		'INSERT INTO usergroup (uid, gid, animal) VALUES (%{uid}, %{gid}, \'%{animal}\')';
 	$conf['plugin']['authsqlite']['delGroup'] = 'DELETE FROM groups WHERE gid=%{gid}';
