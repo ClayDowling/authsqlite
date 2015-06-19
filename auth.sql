@@ -17,10 +17,7 @@ CREATE TABLE groups (
 CREATE TABLE usergroup (
   uid integer not null,
   gid integer not null,
-  primary key (uid, gid)
+  animal text not null default ''
+  primary key (uid, gid, animal)
 );
 
-INSERT INTO user (login, pass, fullname, email) VALUES ('clay', '$1$0HpOo1SM$LAUBcLHpnDVfIiyW2q0Kh0', 'Clay Dowling', 'clay@lazarusid.com');
-INSERT INTO groups (name) VALUES ('admin');
-INSERT INTO groups (name) VALUES ('users');
-INSERT INTO usergroup (uid, gid) SELECT (select uid FROM user WHERE login='clay'), gid FROM groups;
