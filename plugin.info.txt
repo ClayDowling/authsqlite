@@ -1,7 +1,7 @@
 base   authsqlite
 author Clay Dowling
 email  clay@lazarusid.com
-date   2015-05-25
+date   2015-06-25
 name   SQLite Auth Plugin
 desc   Provides user authentication against a SQLite database
 url    http://www.lazarusid.com/authsqlite
