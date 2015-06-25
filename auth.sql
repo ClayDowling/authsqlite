@@ -17,7 +17,7 @@ CREATE TABLE groups (
 CREATE TABLE usergroup (
   uid integer not null,
   gid integer not null,
-  animal text not null default ''
+  animal text not null default '',
   primary key (uid, gid, animal)
 );
 
