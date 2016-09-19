@@ -329,7 +329,10 @@ class auth_plugin_authsqlite extends auth_plugin_authmysql {
      */
     protected function _substituteAnimal($query)
     {
-        if(defined('DOKU_FARM') && strpos($query, '%{animal}') !== false) {
+	if (isset($GLOBALS['FARMCORE'])) {
+	    $query = str_replace('%{animal}', addslashes($GLOBALS['FARMCORE']->getAnimal()), $query);
+	}
+        else if(defined('DOKU_FARM') && strpos($query, '%{animal}') !== false) {
 	    $parts = split('/', DOKU_CONF);
 	    $animal = '';
 	    $len = count($parts);
